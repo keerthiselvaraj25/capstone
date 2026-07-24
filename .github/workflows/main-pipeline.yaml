@@ -39,8 +39,7 @@ jobs:
     uses: ./.github/workflows/shared-docker.yml
     with:
       image_name: ${{ github.repository }}
-      registry: ghcr.io
-      push: true
+    secrets:
       CR_PAT: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
