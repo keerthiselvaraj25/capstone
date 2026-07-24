@@ -30,7 +30,8 @@ jobs:
   docker:
     needs: build-test
     uses: ./.github/workflows/shared-docker.yml
-    secrets: inherit
+    secrets:
+      CR_PAT: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
     needs: docker
