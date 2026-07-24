@@ -1,44 +1,63 @@
-name: CI and CD Pipeline
+name: Capstone Global Cart Application
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
-  workflow_dispatch: {}
+    branches:
+      - main
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  build-test:
+  lint_and_unit_tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [22.x, 24.x]
+        node-version: [22, 24]
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-      - run: npm install
-      - run: npm run lint
-      - run: npm test
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-  docker:
-    needs: build-test
-    uses: ./.github/workflows/shared-docker.yml
+      - name: Install dependencies
+        run: npm ci
+      - name: Run lint
+        run: npm run lint
+      - name: Run unit tests
+        run: npm test
+
+  build-and-push-image:
+    name: Build and Push Docker Image
+    needs: lint_and_unit_tests
+    uses: ./.github/workflows/dockerbuild-template.yml
+    with:
+      image_name: ${{ github.repository }}
+      registry: ghcr.io
+      push: true
     secrets:
-      CR_PAT: ${{ secrets.GITHUB_TOKEN }}
+      token: ${{ secrets.GITHUB_TOKEN }}
 
-  deploy:
-    needs: docker
+  deploy-to-production:
+    name: Deploy to Production
+    needs: build-and-push-image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: Production
       url: https://global-cart.example.com
     steps:
-      - name: Deploy to Production
-        run: echo "Deploying GlobalCart API to Production environment"
+      - name: Deploy application
+        run: |
+          echo "Deploying GlobalCart API to Production environment"
+          echo "Image is available in ghcr.io/${{ github.repository }}"
